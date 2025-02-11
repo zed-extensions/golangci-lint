@@ -9,3 +9,4 @@ repository = "https://github.com/j4ng5y/zed_golangci_lint"
 [language_servers.golangci-lint]
 name = "golangci-lint"
 language = "Golangci Lint"
+languages = ["Go"]
