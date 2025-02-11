@@ -53,7 +53,7 @@ impl GolangciLintExtension {
 
         let (platform, arch) = zed::current_platform();
         let asset_name = format!(
-            "golangci-lint-langserver-{os}-{arch}.{extension}",
+            "golangci-lint-langserver_{os}_{arch}.{extension}",
             arch = match arch {
                 zed::Architecture::Aarch64 => "arm64",
                 zed::Architecture::X86 => "i386",
