@@ -2,7 +2,7 @@
 name = "zed_golangci_lint"
 version = "0.1.0"
 edition = "2021"
-publish = true
+publish = false
 license = "MIT"
 
 [lib]

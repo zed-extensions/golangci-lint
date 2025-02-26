@@ -39,10 +39,6 @@ impl GolangciLintExtension {
             &language_server_id,
             &zed::LanguageServerInstallationStatus::CheckingForUpdate,
         );
-        // We're pinning ZLS to a release that has `.tar.gz` assets, since the latest release does not have
-        // them, at time of writing.
-        //
-        // ZLS tracking issue: https://github.com/zigtools/zls/issues/1879
         let release = zed::latest_github_release(
             "nametake/golangci-lint-langserver",
             GithubReleaseOptions {
