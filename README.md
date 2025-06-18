@@ -9,7 +9,7 @@ A Zed extension for running [golangci-lint](https://golangci-lint.run/) on your 
   "lsp": {
     "golangci-lint": {
       "initialization_options": {
-        "command": ["golangci-lint", "run", "--out-format", "json", "--issues-exit-code=1"]
+        "command": ["golangci-lint", "run", "--output.json.path=stdout", "--issues-exit-code=1", "--show-stats=false"]
       }
     }
   },
