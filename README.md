@@ -15,7 +15,8 @@ A Zed extension for running [golangci-lint](https://golangci-lint.run/) on your 
           "run",
           "--output.json.path",
           "stdout",
-          "--show-stats=false"
+          "--show-stats=false",
+          "--output.text.path="
         ]
       }
     }
