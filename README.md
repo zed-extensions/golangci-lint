@@ -20,7 +20,7 @@ A Zed extension for running [golangci-lint](https://golangci-lint.run/) on your 
         ]
       }
     }
-  }
+  },
   "languages": {
     "Go": {
       "language_servers": ["gopls", "golangci-lint"]
