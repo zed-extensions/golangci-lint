@@ -2,7 +2,11 @@
 
 A Zed extension for running [golangci-lint](https://golangci-lint.run/) on your Go code.
 
-### Configuration
+## Requirements
+
+- [golangci-lint](https://golangci-lint.run/welcome/install/)
+
+## Configuration
 
 ```json
 {
