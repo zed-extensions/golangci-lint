@@ -1,6 +1,6 @@
 use std::fs;
 use zed::LanguageServerId;
-use zed_extension_api::{self as zed, serde_json, GithubReleaseOptions, Result};
+use zed_extension_api::{self as zed, serde_json, GithubReleaseOptions, Result, Worktree};
 
 struct GolangciLintExtension {
     cached_lsp_binary_path: Option<String>,
@@ -117,23 +117,38 @@ impl zed::Extension for GolangciLintExtension {
     }
     fn language_server_initialization_options(
         &mut self,
-        _language_server_id: &LanguageServerId,
-        _worktree: &zed::Worktree,
+        language_server_id: &LanguageServerId,
+        worktree: &zed::Worktree,
     ) -> Result<Option<serde_json::Value>> {
-        let mut m = serde_json::Map::with_capacity(1);
-        let cmd: Vec<serde_json::Value> = vec![
-            "golangci-lint",
-            "run",
-            "--output.json.path",
-            "stdout",
-            "--show-stats=false",
-            "--issues-exit-code=1",
-        ]
-        .iter()
-        .map(|s| serde_json::Value::String(s.to_string()))
-        .collect();
-        m.insert("command".into(), serde_json::Value::Array(cmd));
-        return Ok(Some(serde_json::Value::Object(m)));
+        let init_json =
+            zed::settings::LspSettings::for_worktree(language_server_id.as_ref(), worktree)
+                .ok()
+                .and_then(|settings| settings.initialization_options.clone())
+                .unwrap_or_else(|| serde_json::Value::Object(serde_json::Map::with_capacity(1)));
+        let opts = match init_json {
+            serde_json::Value::Object(mut m) => {
+                if m.get("command").is_none() {
+                    let linter_path = worktree
+                        .which("golangci-lint")
+                        .unwrap_or("golangci-lint".into());
+                    let cmd: Vec<serde_json::Value> = vec![
+                        linter_path.as_str(),
+                        "run",
+                        "--output.json.path",
+                        "stdout",
+                        "--show-stats=false",
+                        "--issues-exit-code=1",
+                    ]
+                    .iter()
+                    .map(|s| serde_json::Value::String(s.to_string()))
+                    .collect();
+                    m.insert("command".into(), serde_json::Value::Array(cmd));
+                };
+                serde_json::Value::Object(m)
+            }
+            _ => init_json,
+        };
+        Ok(Some(opts))
     }
 }
 
