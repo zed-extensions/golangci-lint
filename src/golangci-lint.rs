@@ -1,14 +1,9 @@
 use std::fs;
 use zed::LanguageServerId;
-use zed_extension_api::{self as zed, GithubReleaseOptions, Result};
+use zed_extension_api::{self as zed, serde_json, GithubReleaseOptions, Result, Worktree};
 
 struct GolangciLintExtension {
-    cached_binary_path: Option<String>,
-}
-
-struct GolangciLintLangserverBinary {
-    path: String,
-    environment: Option<Vec<(String, String)>>,
+    cached_lsp_binary_path: Option<String>,
 }
 
 impl GolangciLintExtension {
@@ -16,21 +11,13 @@ impl GolangciLintExtension {
         &mut self,
         language_server_id: &LanguageServerId,
         worktree: &zed::Worktree,
-    ) -> Result<GolangciLintLangserverBinary> {
+    ) -> Result<String> {
         if let Some(path) = worktree.which("golangci-lint-langserver") {
-            let environment = worktree.shell_env();
-            return Ok(GolangciLintLangserverBinary {
-                path,
-                environment: Some(environment),
-            });
+            return Ok(path);
         }
-
-        if let Some(path) = &self.cached_binary_path {
+        if let Some(path) = &self.cached_lsp_binary_path {
             if fs::metadata(path).is_ok_and(|stat| stat.is_file()) {
-                return Ok(GolangciLintLangserverBinary {
-                    path: path.clone(),
-                    environment: None,
-                });
+                return Ok(path.into());
             }
         }
 
@@ -102,18 +89,15 @@ impl GolangciLintExtension {
             }
         }
 
-        self.cached_binary_path = Some(binary_path.clone());
-        Ok(GolangciLintLangserverBinary {
-            path: binary_path,
-            environment: None,
-        })
+        self.cached_lsp_binary_path = Some(binary_path.clone());
+        Ok(binary_path)
     }
 }
 
 impl zed::Extension for GolangciLintExtension {
     fn new() -> Self {
         Self {
-            cached_binary_path: None,
+            cached_lsp_binary_path: None,
         }
     }
 
@@ -122,15 +106,49 @@ impl zed::Extension for GolangciLintExtension {
         language_server_id: &LanguageServerId,
         worktree: &zed::Worktree,
     ) -> Result<zed::Command> {
-        let golangci_lint_langserver_binary =
-            self.language_server_binary(language_server_id, worktree)?;
+        let env = worktree.shell_env();
+        let lsp_binary_path = self.language_server_binary(language_server_id, worktree)?;
+
         Ok(zed::Command {
-            command: golangci_lint_langserver_binary.path,
+            command: lsp_binary_path,
             args: vec![],
-            env: golangci_lint_langserver_binary
-                .environment
-                .unwrap_or_default(),
+            env: env,
         })
+    }
+    fn language_server_initialization_options(
+        &mut self,
+        language_server_id: &LanguageServerId,
+        worktree: &zed::Worktree,
+    ) -> Result<Option<serde_json::Value>> {
+        let init_json =
+            zed::settings::LspSettings::for_worktree(language_server_id.as_ref(), worktree)
+                .ok()
+                .and_then(|settings| settings.initialization_options.clone())
+                .unwrap_or_else(|| serde_json::Value::Object(serde_json::Map::with_capacity(1)));
+        let opts = match init_json {
+            serde_json::Value::Object(mut m) => {
+                if m.get("command").is_none() {
+                    let linter_path = worktree
+                        .which("golangci-lint")
+                        .unwrap_or("golangci-lint".into());
+                    let cmd: Vec<serde_json::Value> = vec![
+                        linter_path.as_str(),
+                        "run",
+                        "--output.json.path",
+                        "stdout",
+                        "--show-stats=false",
+                        "--issues-exit-code=1",
+                    ]
+                    .iter()
+                    .map(|s| serde_json::Value::String(s.to_string()))
+                    .collect();
+                    m.insert("command".into(), serde_json::Value::Array(cmd));
+                };
+                serde_json::Value::Object(m)
+            }
+            _ => init_json,
+        };
+        Ok(Some(opts))
     }
 }
 
